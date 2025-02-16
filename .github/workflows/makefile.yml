@@ -1,0 +1,40 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "lineage-22.1" ]
+  pull_request:
+    branches: [ "lineage-22.1" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: configure
+      run: ./configure
+           sudo apt update
+           sudo apt install git build-essential flex bison libssl-dev libncurses-dev bc python3 -y
+
+    - name: Install dependencies
+      run: git clone https://github.com/kyasu/android_kernel_xiaomi_sdm660.git
+           cd android_kernel_xiaomi_sdm660
+           git checkout lineage-22.1
+           git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
+           make ARCH=arm64 O=out sdm660_defconfig
+           export PATH=$(pwd)/clang/bin:$PATH
+           export PATH=$(pwd)/aarch64-gcc/bin:$PATH
+           make -j$(nproc --all) ARCH=arm64 O=out \
+              LLVM=1 \
+              LLVM_IAS=1 \
+              CROSS_COMPILE=aarch64-linux-android- \
+              CROSS_COMPILE_COMPAT=arm-linux-androideabi-
+
+    - name: Run check
+      run: make check
+
+    - name: Run distcheck
+      run: make distcheck
